@@ -1,0 +1,188 @@
+/*TRATAMENTO DOS DADOS IMAGOM - INSERÇÃO DOS DADOS QUE NÃO FORAM INSERIDOS*/
+
+/*FILTRAGEM DOS DADOS DA TABELA atendimento_tratamento PARA CAPTURAR OS VALORES CORRETOS DOS REGISTROS*/
+
+SELECT [unidade]
+      ,[id_usuario]
+      ,[ocorrencia_atendimento]
+      ,[data_hora_atendimento_AUS]
+      ,[cod_servico]
+      ,[usuario]
+      ,[guiche]
+      ,[descricao]
+
+  INTO #CURSOR_ATENDIMENTO
+
+  FROM [imagom].[dbo].[atendimento_tratamento]
+  
+  ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #CURSOR_ATENDIMENTO
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/*QUERY COM CONDIÇÃO PARA FILTRAGEM DO TABELÃO E CRIAÇÃO DO CURSOR*/
+
+	SELECT 
+	   [#CURSOR_ATENDIMENTO].[unidade]
+      ,[#CURSOR_ATENDIMENTO].[id_usuario]
+	  ,[#CURSOR_ATENDIMENTO].cod_servico
+	  ,[#CURSOR_ATENDIMENTO].data_hora_atendimento_AUS
+	  ,[#CURSOR_ATENDIMENTO].descricao
+	  ,NULL AS avaliacao
+	  ,IIF( ocorrencia_atendimento = 'INC', data_hora_atendimento_AUS, NULL ) AS data_hora_atendimento_INC
+	  ,IIF( ocorrencia_atendimento = 'AVI', data_hora_atendimento_AUS, NULL ) AS data_hora_atendimento_AVI
+	  ,IIF( ocorrencia_atendimento = 'INI', data_hora_atendimento_AUS, NULL ) AS data_hora_atendimento_INI
+	  ,IIF( ocorrencia_atendimento = 'ISA', data_hora_atendimento_AUS, NULL ) AS data_hora_atendimento_ISA
+	  ,IIF( ocorrencia_atendimento = 'FSA', data_hora_atendimento_AUS, NULL ) AS data_hora_atendimento_FSA
+	  ,IIF( ocorrencia_atendimento = 'CAN', data_hora_atendimento_AUS, NULL ) AS data_hora_atendimento_CAN
+	  ,IIF( ocorrencia_atendimento = 'FIM', data_hora_atendimento_AUS, NULL ) AS data_hora_atendimento_FIM
+
+	/*INTO #TB_RESULTADO_TEST*/
+  
+	FROM 
+	#CURSOR_ATENDIMENTO
+		
+	WHERE
+		#CURSOR_ATENDIMENTO.cod_servico <> '\N' 
+	
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #TB_RESULTADO_TEST
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/**inserir dados cancelados separados. fazer filtragem só deles e depois inserir*/
+  /*DADOS FILTRADOS PARA INC*/
+	
+	SELECT 
+	   [unidade]
+      ,[id_usuario]
+      ,[ocorrencia_atendimento]
+      ,[data_hora_atendimento_AUS]
+      ,[cod_servico]
+      ,[descricao]
+
+	/*INTO #RESULTADO_INC*/
+
+	FROM [imagom].[dbo].[atendimento_tratamento]
+
+	WHERE ocorrencia_atendimento = 'INC'
+  
+	ORDER BY 
+		unidade,
+		id_usuario + 0 ASC
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM 
+	#T_RESULTADO
+  
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/*QUERY PÁRA INSERIR #FILTRO_INC DENTRO DO CUROR #RESULTADO*/
+
+			SELECT 
+				#TB_RESULTADO.[unidade]
+				,#TB_RESULTADO.[id_usuario]
+				,#TB_RESULTADO.[cod_servico]
+				,#TB_RESULTADO.[data_hora_atendimento_AUS]
+
+			INTO #CURSOR_INC
+
+			FROM 
+				#TB_RESULTADO LEFT JOIN #T_RESULTADO ON
+				#RESULTADO_INC.[unidade] = #T_RESULTADO.[unidade] AND
+				#RESULTADO_INC.[id_usuario] = #T_RESULTADO.[id_usuario] 
+
+			ORDER BY 
+				#RESULTADO_INC.[unidade]
+				,#RESULTADO_INC.[id_usuario] + 0 ASC
+			
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #CURSOR_INC
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+/*INSERÇÃO DOS DADOS DO SELECT NO CURSOR_BASE*/
+
+	SELECT 
+	   #TB_RESULTADO.[unidade]
+      ,#TB_RESULTADO.[id_usuario]
+	  ,#TB_RESULTADO.cod_servico
+	  ,#TB_RESULTADO.data_hora_atendimento_AUS
+	  
+	INTO #CURSOR_BASE_TB
+	
+	FROM #TB_RESULTADO
+	
+	GROUP BY
+		#TB_RESULTADO.[unidade]
+		,#TB_RESULTADO.[id_usuario]
+		,#TB_RESULTADO.cod_servico
+	    ,#TB_RESULTADO.data_hora_atendimento_AUS
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #CURSOR_BASE_TB
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/*INSERÇÃO DOS DADOS DO SELECT NO CURSOR_BASE*/
+
+	SELECT 
+	   #CURSOR_INC.[unidade]
+      ,#CURSOR_INC.[id_usuario]
+	  ,#CURSOR_INC.cod_servico
+	  ,#CURSOR_INC.data_hora_atendimento_AUS
+	  
+	INTO #CURSOR_BASE
+	
+	FROM #CURSOR_INC
+	
+	GROUP BY
+		#CURSOR_INC.[unidade]
+		,#CURSOR_INC.[id_usuario]
+		,#CURSOR_INC.cod_servico
+	    ,#CURSOR_INC.data_hora_atendimento_AUS 
+
+
+ /*INICIO DE ATENDIMENTO - CAN*/
+/*QUERY PARA CRIAÇÃO DO CURSOR INC*/
+
+	SELECT 
+	   [unidade]
+      ,[id_usuario]
+	  ,cod_servico
+	  ,data_hora_atendimento_AUS
+	
+	INTO #CURSOR_AUS
+	
+	FROM 
+		imagom.dbo.atendimento_tratamento
+	
+	WHERE ocorrencia_atendimento = 'CAN'
+	
+	ORDER BY
+		unidade,
+		id_usuario + 0 ASC

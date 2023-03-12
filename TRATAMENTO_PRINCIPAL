@@ -1,0 +1,297 @@
+/*TRATAMENTO DADOS IMAGOM*/
+
+/** A ORDEM DE INSERÇÃO DOS REGISTROS VAI SER DIFERENTE. TENTAR COMEÇAR POR INC-INI-FIM QUE SÃO AS OCORRENCIAS PRINCIPAIS
+APÓS ISSO INSERIR AS OUTRAS OCORRENCIAS. OBJETIVO TENTAR NÃO PERDER TANTO DADOS JÁ QUE INC -INICIO DE CHAMADO- É UMA 
+OCORRENCIA QUE PERTENCE A TODOS**/
+
+
+
+/*DADOS FILTRADOS*/
+	
+	SELECT 
+	   [unidade]
+      ,[id_usuario]
+      ,[ocorrencia_atendimento]
+      ,[data_hora_atendimento]
+      ,[cod_servico]
+      ,[descricao]
+
+	INTO #RESULTADO
+
+	FROM [imagom].[dbo].[atendimento_tratamento]
+
+	WHERE ocorrencia_atendimento = 'INC'
+  
+	ORDER BY 
+		unidade,
+		id_usuario + 0 ASC
+
+	
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #RESULTADO
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+
+
+/*QUERY COM CONDIÇÃO PARA FILTRAGEM DO TABELÃO E CRIAÇÃO DO CURSOR*/
+
+
+	SELECT 
+	   [imagom].[dbo].[atendimento_tratamento].[unidade]
+      ,[imagom].[dbo].[atendimento_tratamento].[id_usuario]
+	  ,[imagom].[dbo].[atendimento_tratamento].cod_servico
+	  ,[imagom].[dbo].[atendimento_tratamento].data_hora_atendimento
+	  ,[imagom].[dbo].[atendimento_tratamento].descricao
+	  ,NULL AS avaliacao
+	  /*,IIF( ocorrencia_atendimento = 'INC', data_hora_atendimento, data_hora_atendimento  ) AS data_hora_atendimento_INC*/
+    	,IIF( ocorrencia_atendimento = 'AUS', data_hora_atendimento, NULL ) AS data_hora_atendimento_AUS
+	  ,IIF( ocorrencia_atendimento = 'AVI', data_hora_atendimento, NULL ) AS data_hora_atendimento_AVI
+	  ,IIF( ocorrencia_atendimento = 'INI', data_hora_atendimento, NULL ) AS data_hora_atendimento_INI
+	  ,IIF( ocorrencia_atendimento = 'ISA', data_hora_atendimento, NULL ) AS data_hora_atendimento_ISA
+	  ,IIF( ocorrencia_atendimento = 'FSA', data_hora_atendimento, NULL ) AS data_hora_atendimento_FSA
+	  ,IIF( ocorrencia_atendimento = 'CAN', data_hora_atendimento, NULL ) AS data_hora_atendimento_CAN
+	  ,IIF( ocorrencia_atendimento = 'FIM', data_hora_atendimento, NULL ) AS data_hora_atendimento_FIM
+
+	INTO 
+		#TB_RESUL
+  
+	FROM 
+		[imagom].[dbo].[atendimento_tratamento]	
+
+	WHERE
+		[imagom].[dbo].[atendimento_tratamento].cod_servico <> '\N' 
+  
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #TB_RESUL
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/*CRIACAO CURSOR BASE COM A JUNÇÃO DOS DADOS DOS DOIS CURSORES ANTERIORES*/
+
+	SELECT 
+	   #RESULTADO.[unidade]
+      ,#RESULTADO.[id_usuario]
+	  ,#TB_RESUL.[cod_servico]
+	  ,#RESULTADO.[data_hora_atendimento]
+	
+	INTO #CURSOR_BASE1_
+
+	FROM 
+		#RESULTADO LEFT JOIN #TB_RESUL ON
+		#RESULTADO.[unidade] = #TB_RESUL.[unidade] AND
+		#RESULTADO.[id_usuario] = #TB_RESUL.[id_usuario] 
+	
+	
+	ORDER BY 
+			#RESULTADO.unidade,
+			#RESULTADO.id_usuario + 0 ASC
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #CURSOR_BASE1_
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+	
+/*INSERÇÃO DOS DADOS DO SELECT NO CURSOR_BASE*/
+
+	SELECT 
+	   #CURSOR_BASE1_.[unidade]
+      ,#CURSOR_BASE1_.[id_usuario]
+	  ,#CURSOR_BASE1_.cod_servico
+	  ,#CURSOR_BASE1_.data_hora_atendimento
+	  
+	INTO #CURSOR_BASE2
+	
+	FROM #CURSOR_BASE1_
+	
+	GROUP BY
+		#CURSOR_BASE1_.[unidade]
+		,#CURSOR_BASE1_.[id_usuario]
+		,#CURSOR_BASE1_.cod_servico
+	    ,#CURSOR_BASE1_.data_hora_atendimento
+
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT * FROM #CURSOR_BASE2
+
+	ORDER BY
+		unidade
+		,id_usuario + 0 ASC
+
+ /* COLUNA DATA_INI*/
+ /*CRIACAO DO CURSO REFERNTE AO INICIO ATENDIMENTO - INI*/
+
+	SELECT 
+	   #TB_RESUL.[unidade]
+      ,#TB_RESUL.[id_usuario]
+	  ,#TB_RESUL.cod_servico
+	  ,#TB_RESUL.data_hora_atendimento_INI
+	
+	/*INTO 
+		#CURSOR_INI*/
+
+	FROM 
+		#TB_RESUL
+	
+	ORDER BY
+		unidade
+		,id_usuario + 0 ASC
+/* #ERROR# COM ESSA QUERY ELE VAI ME RETORNAR APENAS ALGUNS REGISTROS*/
+	WHERE 
+		#TB_RESULTADO.data_hora_atendimento_INI IS NOT NULL
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+	
+	SELECT * FROM #CURSOR_INI
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+
+/*INSERÇÃO DATA_HORA_INICIO PARA DENTRO DO CURSOR - COLUNA DATA_INI*/	 
+	SELECT 
+	   #CURSOR_BASE_INC_AUS1_AVI.[unidade]
+      ,#CURSOR_BASE_INC_AUS1_AVI.[id_usuario]
+	  ,#CURSOR_BASE_INC_AUS1_AVI.cod_servico
+	  ,#CURSOR_BASE_INC_AUS1_AVI.data_hora_atendimento
+	  ,#CURSOR_INI.data_hora_atendimento_INI
+
+	INTO 
+		#CURSOR_BASE_INC
+
+	FROM 
+		#CURSOR_BASE_INC LEFT JOIN #CURSOR_INI ON
+		#CURSOR_BASE_INC.[unidade] = #CURSOR_INI.[unidade] AND
+		#CURSOR_BASE_INC.[id_usuario] = #CURSOR_INI.[id_usuario] AND
+		#CURSOR_BASE_INC.cod_servico = #CURSOR_INI.cod_servico AND
+		#CURSOR_INI.data_hora_atendimento_INI IS NOT NULL 
+	
+		ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+		
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+	
+	SELECT * FROM #CURSOR_BASE_INC_AUS1_AVI_INIC
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+	
+
+
+/*COLUNA DATA_HORA+_AUSENTE*/
+/*CRIAÇÃO DO CURSOR REFERENTE AO ATENDIMENTO AUS */
+
+	SELECT 
+	   #TB_RESULTADO.[unidade]
+      ,#TB_RESULTADO.[id_usuario]
+	  ,#TB_RESULTADO.cod_servico
+	  ,#TB_RESULTADO.data_hora_atendimento_AUS
+	
+	INTO 
+		#CURSOR_AUS
+	
+	FROM 
+		#TB_RESULTADO
+
+/* #ERROR# COM ESSA QUERY ELE VAI ME RETORNAR APENAS OS DADOS DE SOBRADINHO - 1062 REGISTROS:*/
+	WHERE	
+		#TB_RESULTADO.data_hora_atendimento_AUS IS NOT NULL
+
+/*INSERÇÃO DATA AUSENCIA PARA ATENDIMENTO DENTRO DO CURSOR - COLUNA DATA_AUS*/
+
+
+	SELECT 
+	   #CURSOR_BASE1.[unidade]
+      ,#CURSOR_BASE1.[id_usuario]
+	  ,#CURSOR_BASE1.cod_servico
+	  ,#CURSOR_BASE1.data_hora_atendimento
+	  ,#CURSOR_AUS.data_hora_atendimento_AUS
+	
+	INTO	 
+		#CURSOR_BASE_INC_AUS1
+
+	FROM 
+		#CURSOR_BASE1 LEFT JOIN #CURSOR_AUS ON
+		#CURSOR_BASE1.[unidade] = #CURSOR_AUS.[unidade] AND
+		#CURSOR_BASE1.[id_usuario] = #CURSOR_AUS.[id_usuario] AND
+		#CURSOR_BASE1.cod_servico = #CURSOR_AUS.cod_servico 
+
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+
+	SELECT data_hora_atendimento
+	
+	FROM #CURSOR_BASE_INC_AUS1
+
+
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+
+/* COLUNA DATA_AVI*/
+/*CRIACAO DO CURSO REFERNTE AO ATENDIMENTO VIRTUAL - AVI*/
+	
+	SELECT 
+	   #TB_RESULTADO.[unidade]
+      ,#TB_RESULTADO.[id_usuario]
+	  ,#TB_RESULTADO.cod_servico
+	  ,#TB_RESULTADO.data_hora_atendimento_AVI
+	INTO 
+		#CURSOR_AVI
+	FROM 
+		#TB_RESULTADO
+/* #ERROR# COM ESSA QUERY ELE VAI ME RETORNAR APENAS ALGUNS REGISTROS*/
+	WHERE 
+		#TB_RESULTADO.data_hora_atendimento_AVI IS NOT NULL
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+	
+	SELECT * FROM #CURSOR_AVI
+	
+	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+/*INSERÇÃO DATA AUSENCIA PARA ATENDIMENTO DENTRO DO CURSOR - COLUNA DATA_AUS*/	 
+	SELECT 
+	   #CURSOR_BASE_INC_AUS1.[unidade]
+      ,#CURSOR_BASE_INC_AUS1.[id_usuario]
+	  ,#CURSOR_BASE_INC_AUS1.cod_servico
+	  ,#CURSOR_BASE_INC_AUS1.data_hora_atendimento
+	  ,#CURSOR_BASE_INC_AUS1.data_hora_atendimento_AUS
+	  ,#CURSOR_AVI.data_hora_atendimento_AVI
+
+	INTO #CURSOR_BASE_INC_AUS1_AVI
+
+	FROM 
+	 #CURSOR_BASE_INC_AUS1 LEFT JOIN #CURSOR_AVI ON
+	 #CURSOR_BASE_INC_AUS1.[unidade] = #CURSOR_AVI.[unidade] AND
+     #CURSOR_BASE_INC_AUS1.[id_usuario] = #CURSOR_AVI.[id_usuario] AND
+	 #CURSOR_BASE_INC_AUS1.cod_servico = #CURSOR_AVI.cod_servico 
+
+
+/*SELECT PARA VIZUALIZAR OS DADOS FILTRADOS DA QUERY ANTERIOR*/
+	 
+	 SELECT * FROM #CURSOR_BASE_INC_AUS1_AVI
+
+	 	ORDER BY 
+			unidade,
+			id_usuario + 0 ASC
+
+
+
+
